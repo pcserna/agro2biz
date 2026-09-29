@@ -68,6 +68,9 @@ Check each source's terms of use; store summaries + links for news, not full tex
   (expert guesses) until estimated from data.
 
 ## Next tasks
+Full phased plan: `docs/ROADMAP.md` (with `docs/price_transmission_spec.md`,
+`docs/data_model.md`, `docs/sources.md`). Phase 0 items, in order:
+
 1. Write `tools/price_transmission.py`: take price moves (e.g. maize_grain=+20%,
    natural_gas=+50%, or a benchmark) and compute via cost shares (Leontief-style,
    iterate to convergence) the break-even price change per business, apply
