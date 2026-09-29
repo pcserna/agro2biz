@@ -1,0 +1,127 @@
+# Agro2Biz – price transmission layer (v0.1)
+#
+# Complements agribusiness_io.yaml (physical flows) with HOW PRICES MOVE.
+# Every coefficient carries a status:
+#   prior     – expert estimate / literature ballpark, to be replaced
+#   estimated – fitted from data (PÁIR, FADN, EU portal), with source + date
+# All coefficients are elasticities: a 10% move in the driver -> coef*10% move.
+
+version: 0.1
+
+# ---------------------------------------------------------------------------
+# 1. External anchors. Hungary is largely a price taker: most tradable
+#    commodity prices follow international benchmarks, converted via EUR/HUF.
+# ---------------------------------------------------------------------------
+benchmarks:
+  euronext_wheat:     {hu: Euronext malmi búza, en: Euronext milling wheat, drives: {wheat: 0.8, barley: 0.6}, lag_weeks: 1, status: prior}
+  euronext_maize:     {hu: Euronext kukorica, en: Euronext maize, drives: {maize_grain: 0.8}, lag_weeks: 1, status: prior}
+  euronext_rapeseed:  {hu: Euronext repce, en: Euronext rapeseed, drives: {rapeseed: 0.85, sunflower_seed: 0.6}, lag_weeks: 1, status: prior}
+  cbot_soymeal:       {hu: CBOT szójadara, en: CBOT soybean meal, drives: {soybean_meal: 0.85, oilseed_meal: 0.6}, lag_weeks: 2, status: prior}
+  veg_oil_world:      {hu: Világpiaci napraforgóolaj, en: World sunflower oil, drives: {vegetable_oil: 0.8}, lag_weeks: 2, status: prior}
+  ttf_gas:            {hu: TTF földgáz, en: TTF natural gas, drives: {natural_gas: 0.7, electricity: 0.4}, lag_weeks: 4, status: prior}
+  brent:              {hu: Brent olaj, en: Brent crude, drives: {diesel: 0.5}, lag_weeks: 2, status: prior}
+  eu_pig_price:       {hu: EU vágósertés-ár, en: EU pig reference price, drives: {slaughter_pigs: 0.8, piglets: 0.9}, lag_weeks: 1, status: prior}
+  eu_milk_price:      {hu: EU nyerstejár, en: EU raw milk price, drives: {raw_milk: 0.6}, lag_weeks: 8, status: prior}
+  eur_huf:            {hu: EUR/HUF árfolyam, en: EUR/HUF rate, drives: {"*tradable": 0.9}, lag_weeks: 0, status: prior}
+
+# ---------------------------------------------------------------------------
+# 2. Cost structures (cost pass-through). Share of each input in the cost of
+#    producing the business's main output(s). Remainder = labour, land,
+#    depreciation, overheads not modelled as products.
+#    Replace with AKI FADN (tesztüzemi) cost structures by farm type.
+# ---------------------------------------------------------------------------
+cost_structure:
+  arable_farm:      {status: prior, shares: {fertilizer_n: 0.20, fertilizer_pk: 0.06, certified_seed: 0.10, crop_protection: 0.12, diesel: 0.08, contract_services: 0.10, natural_gas: 0.02}}
+  seed_producer:    {status: prior, shares: {labour: 0.20, crop_protection: 0.12, fertilizer_n: 0.08, irrigation_water: 0.05, diesel: 0.05, pollination: 0.04}}
+  grassland_farm:   {status: prior, shares: {diesel: 0.20, contract_services: 0.25}}
+  orchard:          {status: prior, shares: {labour: 0.35, crop_protection: 0.15, irrigation_water: 0.05, diesel: 0.04, fertilizer_n: 0.03, pollination: 0.03}}
+  vegetable_grower: {status: prior, shares: {labour: 0.30, natural_gas: 0.20, certified_seed: 0.08, fertilizer_n: 0.05, crop_protection: 0.05, irrigation_water: 0.04, electricity: 0.04}}
+  vineyard_winery:  {status: prior, shares: {labour: 0.35, crop_protection: 0.10, diesel: 0.04, electricity: 0.04}}
+  forestry:         {status: prior, shares: {labour: 0.35, diesel: 0.15}}
+  beekeeping:       {status: prior, shares: {sugar: 0.20, varroa_treatment: 0.08, diesel: 0.08, bee_colonies: 0.05, beeswax: 0.03}}
+  dairy_farm:       {status: prior, shares: {silage_maize: 0.18, alfalfa_hay: 0.10, compound_feed: 0.15, soybean_meal: 0.05, oilseed_meal: 0.04, meadow_hay: 0.03, straw: 0.03, labour: 0.10, vet_medicine: 0.04, electricity: 0.03}}
+  beef_cattle:      {status: prior, shares: {calves: 0.30, meadow_hay: 0.20, pasture: 0.15, silage_maize: 0.05, compound_feed: 0.05}}
+  pig_farm:         {status: prior, shares: {compound_feed: 0.60, piglets: 0.12, vet_medicine: 0.04, electricity: 0.03, labour: 0.08}}
+  hatchery:         {status: prior, shares: {hatching_eggs: 0.55, electricity: 0.08, vet_medicine: 0.05}}
+  broiler_farm:     {status: prior, shares: {compound_feed: 0.65, day_old_chicks: 0.15, natural_gas: 0.04, straw: 0.01, vet_medicine: 0.02}}
+  layer_farm:       {status: prior, shares: {compound_feed: 0.60, day_old_chicks: 0.10, electricity: 0.03, vet_medicine: 0.02}}
+  waterfowl_farm:   {status: prior, shares: {compound_feed: 0.45, maize_grain: 0.15, day_old_chicks: 0.15, vet_medicine: 0.02}}
+  sheep_goat:       {status: prior, shares: {pasture: 0.20, meadow_hay: 0.20, compound_feed: 0.10, vet_medicine: 0.04}}
+  fish_farm:        {status: prior, shares: {wheat: 0.15, maize_grain: 0.15, compound_feed: 0.10, labour: 0.15, irrigation_water: 0.05}}
+  feed_mill:        {status: prior, shares: {maize_grain: 0.35, wheat: 0.12, barley: 0.08, soybean_meal: 0.22, oilseed_meal: 0.07, ddgs: 0.03, bran: 0.02, molasses: 0.01, electricity: 0.02}}
+  oilseed_crusher:  {status: prior, shares: {sunflower_seed: 0.62, rapeseed: 0.15, soybean: 0.05, natural_gas: 0.02, electricity: 0.02}}
+  flour_mill:       {status: prior, shares: {wheat: 0.75, electricity: 0.04}}
+  sugar_factory:    {status: prior, shares: {sugar_beet: 0.50, natural_gas: 0.15}}
+  bioethanol_plant: {status: prior, shares: {maize_grain: 0.65, natural_gas: 0.10, electricity: 0.03}}
+  slaughterhouse:   {status: prior, shares: {slaughter_pigs: 0.32, broilers: 0.22, live_cattle: 0.12, waterfowl: 0.06, lambs: 0.02, labour: 0.10, electricity: 0.03}}
+  dairy_processor:  {status: prior, shares: {raw_milk: 0.60, small_rum_milk: 0.02, natural_gas: 0.05, electricity: 0.03}}
+  distillery:       {status: prior, shares: {industrial_fruit: 0.45, grape_pomace: 0.10, natural_gas: 0.08}}
+  biogas_plant:     {status: prior, shares: {silage_maize: 0.30, manure: 0.05, beet_pulp: 0.03, whey: 0.02}}
+  biomass_energy:   {status: prior, shares: {energy_wood: 0.45, straw: 0.12, sunflower_husk: 0.12, maize_stover: 0.03, prunings: 0.02}}
+  fertilizer_plant: {status: prior, shares: {natural_gas: 0.75, electricity: 0.05}}
+
+# Share of a cost change that actually reaches the selling price, by market
+# power of the business. Farmers selling commodities usually absorb cost rises;
+# concentrated processors pass more on.
+pass_through:
+  default: 0.5
+  by_sector: {plant_production: 0.2, horticulture: 0.4, apiculture: 0.3, livestock: 0.4, aquaculture: 0.4,
+              forestry: 0.4, processing: 0.8, energy: 0.8, inputs: 0.9}
+  status: prior
+
+# ---------------------------------------------------------------------------
+# 3. Substitutes: products used interchangeably, so their prices co-move.
+# ---------------------------------------------------------------------------
+substitutes:
+  feed_grains:     {members: [maize_grain, wheat, barley], coef: 0.6, status: prior}
+  protein_meals:   {members: [soybean_meal, oilseed_meal, ddgs], coef: 0.5, status: prior}
+  roughage:        {members: [alfalfa_hay, meadow_hay, silage_maize], coef: 0.4, status: prior}
+  heating_fuels:   {members: [natural_gas, pellets, energy_wood], coef: 0.3, status: prior}
+  solid_biomass:   {members: [straw, maize_stover, sunflower_husk, energy_wood], coef: 0.4, status: prior}
+  poultry_meats:   {members: [broilers, waterfowl], coef: 0.3, status: prior}
+
+# ---------------------------------------------------------------------------
+# 4. Co-products: produced together in fixed proportions. The input's value
+#    is the sum of its outputs, so one co-product's price moves the others'
+#    supply and the margin of the processor.
+# ---------------------------------------------------------------------------
+co_products:
+  sunflower_crush:  {process: oilseed_crusher, input: sunflower_seed, yields: {vegetable_oil: 0.42, oilseed_meal: 0.35, sunflower_husk: 0.20}}
+  maize_ethanol:    {process: bioethanol_plant, input: maize_grain, yields: {bioethanol: 0.38, ddgs: 0.30}}
+  beet_sugar:       {process: sugar_factory, input: sugar_beet, yields: {sugar: 0.15, beet_pulp: 0.06, molasses: 0.04}}
+  wheat_milling:    {process: flour_mill, input: wheat, yields: {flour: 0.75, bran: 0.22}}
+  milk_processing:  {process: dairy_processor, input: raw_milk, yields: {dairy_products: 0.15, whey: 0.80}}
+  dairy_herd:       {process: dairy_farm, yields: {raw_milk: 1.0, calves: 0.9, live_cattle: 0.3}}
+
+# ---------------------------------------------------------------------------
+# 5. Competing uses: one product, several buyer sectors bidding for it.
+#    A demand surge from one pushes the price up for all the others.
+# ---------------------------------------------------------------------------
+competing_uses:
+  maize_grain:   [feed_mill, bioethanol_plant, waterfowl_farm, fish_farm]
+  silage_maize:  [dairy_farm, beef_cattle, biogas_plant]
+  straw:         [dairy_farm, beef_cattle, broiler_farm, biomass_energy]
+  sunflower_husk: [biomass_energy]
+  manure:        [arable_farm, grassland_farm, biogas_plant]
+  wheat:         [flour_mill, feed_mill, fish_farm]
+
+# Land competition: next season's acreage (and so supply) responds to relative
+# crop prices at sowing time.
+acreage_competition:
+  members: [wheat, maize_grain, barley, sunflower_seed, rapeseed, soybean, sugar_beet, silage_maize]
+  supply_elasticity: 0.3
+  lag_months: 12
+  status: prior
+
+# ---------------------------------------------------------------------------
+# 6. Margin indicators shown to users: the ratios farmers actually decide on.
+# ---------------------------------------------------------------------------
+margins:
+  pig_feed_ratio:      {hu: Sertés/takarmány arány, en: Pig-to-feed ratio, num: slaughter_pigs, den: compound_feed, business: pig_farm}
+  milk_feed_ratio:     {hu: Tej/takarmány arány, en: Milk-to-feed ratio, num: raw_milk, den: compound_feed, business: dairy_farm}
+  broiler_feed_ratio:  {hu: Csirke/takarmány arány, en: Broiler-to-feed ratio, num: broilers, den: compound_feed, business: broiler_farm}
+  egg_feed_ratio:      {hu: Tojás/takarmány arány, en: Egg-to-feed ratio, num: eggs, den: compound_feed, business: layer_farm}
+  crush_margin:        {hu: Olajütési árrés, en: Sunflower crush margin, co_product: sunflower_crush}
+  ethanol_margin:      {hu: Etanolgyártási árrés, en: Ethanol margin, co_product: maize_ethanol}
+  fertilizer_affordability: {hu: Búza/műtrágya arány, en: Wheat-to-fertilizer ratio, num: wheat, den: fertilizer_n, business: arable_farm}
+  honey_sugar_ratio:   {hu: Méz/cukor arány, en: Honey-to-sugar ratio, num: honey, den: sugar, business: beekeeping}

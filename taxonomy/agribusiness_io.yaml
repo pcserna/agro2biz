@@ -1,0 +1,368 @@
+# Agro2Biz – agribusiness input/output model (v0.1)
+#
+# Edges between agribusinesses are NOT listed by hand: an edge A -> B via P
+# exists whenever product P is in A.outputs and in B.inputs.
+#
+# Weights (1-3):
+#   inputs:  how critical the input is for the business (3 = no production without it)
+#   outputs: share of the business's revenue / relevance (3 = main product)
+# payment:  who pays whom for the flow
+#   buyer_pays (default) | provider_pays | varies | none (ecosystem flow)
+# origin:   domestic (default) | external (energy, imports, labour market...)
+# cycle_months: time from input decision to output (drives propagation lag)
+
+version: 0.1
+
+products:
+  # --- field crops -------------------------------------------------------
+  wheat:            {hu: búza, en: wheat, unit: t}
+  maize_grain:      {hu: kukorica (szemes), en: maize grain, unit: t}
+  barley:           {hu: árpa, en: barley, unit: t}
+  sunflower_seed:   {hu: napraforgómag, en: sunflower seed, unit: t}
+  rapeseed:         {hu: repcemag, en: rapeseed, unit: t}
+  soybean:          {hu: szójabab, en: soybean, unit: t}
+  sugar_beet:       {hu: cukorrépa, en: sugar beet, unit: t}
+  certified_seed:   {hu: vetőmag, en: certified seed, unit: t}
+  # --- forage & crop byproducts -------------------------------------------
+  silage_maize:     {hu: silókukorica, en: maize silage, unit: t}
+  alfalfa_hay:      {hu: lucernaszéna, en: alfalfa hay, unit: t}
+  meadow_hay:       {hu: réti széna, en: meadow hay, unit: t}
+  pasture:          {hu: legeltetés, en: grazing, unit: ha, kind: service}
+  straw:            {hu: szalma, en: straw, unit: t}
+  maize_stover:     {hu: kukoricaszár, en: maize stover, unit: t}
+  # --- horticulture & wine ---------------------------------------------
+  fresh_fruit:      {hu: friss gyümölcs, en: fresh fruit, unit: t}
+  industrial_fruit: {hu: ipari gyümölcs, en: processing fruit, unit: t}
+  vegetables:       {hu: zöldség, en: vegetables, unit: t}
+  grapes:           {hu: szőlő, en: grapes, unit: t}
+  wine:             {hu: bor, en: wine, unit: hl}
+  grape_pomace:     {hu: törköly, en: grape pomace, unit: t}
+  prunings:         {hu: nyesedék, venyige, en: prunings, unit: t}
+  fruit_spirits:    {hu: pálinka, en: fruit spirits, unit: hl}
+  # --- bees -----------------------------------------------------------------
+  honey:            {hu: méz, en: honey, unit: kg}
+  beeswax:          {hu: méhviasz, en: beeswax, unit: kg}
+  bee_colonies:     {hu: méhcsalád, anyák, en: bee colonies and queens, unit: pcs}
+  pollination:      {hu: beporzás, en: pollination, unit: hive, kind: service, payment: varies}
+  nectar_flow:      {hu: méhlegelő, en: nectar forage, unit: ha, kind: ecosystem, payment: none}
+  # --- livestock ------------------------------------------------------------
+  raw_milk:         {hu: nyers tej, en: raw milk, unit: l}
+  live_cattle:      {hu: vágómarha, növendék, en: live cattle, unit: head}
+  calves:           {hu: borjú, en: calves, unit: head}
+  piglets:          {hu: malac, en: piglets, unit: head}
+  slaughter_pigs:   {hu: vágósertés, en: slaughter pigs, unit: head}
+  day_old_chicks:   {hu: naposcsibe, en: day-old chicks, unit: pcs}
+  hatching_eggs:    {hu: keltetőtojás, en: hatching eggs, unit: pcs}
+  broilers:         {hu: vágócsirke, en: broilers, unit: kg}
+  eggs:             {hu: étkezési tojás, en: table eggs, unit: pcs}
+  waterfowl:        {hu: víziszárnyas (kacsa, liba), en: ducks and geese, unit: kg}
+  feathers_down:    {hu: toll, pehely, en: feathers and down, unit: kg}
+  lambs:            {hu: bárány, en: lambs, unit: head}
+  wool:             {hu: gyapjú, en: wool, unit: kg}
+  small_rum_milk:   {hu: juh- és kecsketej, en: sheep and goat milk, unit: l}
+  fish:             {hu: étkezési hal, en: table fish, unit: kg}
+  manure:           {hu: istállótrágya, hígtrágya, en: manure and slurry, unit: t, payment: varies}
+  poultry_litter:   {hu: baromfitrágya, en: poultry litter, unit: t, payment: varies}
+  # --- processing -------------------------------------------------------------
+  compound_feed:    {hu: tápkeverék, en: compound feed, unit: t}
+  soybean_meal:     {hu: szójadara, en: soybean meal, unit: t}
+  oilseed_meal:     {hu: napraforgó- és repcedara, en: sunflower and rapeseed meal, unit: t}
+  vegetable_oil:    {hu: étolaj, nyers olaj, en: vegetable oil, unit: t}
+  sunflower_husk:   {hu: napraforgóhéj, en: sunflower husk, unit: t}
+  flour:            {hu: liszt, en: flour, unit: t}
+  bran:             {hu: korpa, en: bran, unit: t}
+  sugar:            {hu: cukor, en: sugar, unit: t}
+  beet_pulp:        {hu: répaszelet, en: beet pulp, unit: t}
+  molasses:         {hu: melasz, en: molasses, unit: t}
+  bioethanol:       {hu: bioetanol, en: bioethanol, unit: m3}
+  ddgs:             {hu: DDGS (szárított szeszmoslék), en: DDGS, unit: t}
+  meat:             {hu: hús, en: meat, unit: t}
+  animal_byproducts: {hu: állati melléktermék, en: animal by-products, unit: t}
+  dairy_products:   {hu: tejtermék, en: dairy products, unit: t}
+  whey:             {hu: savó, en: whey, unit: t}
+  # --- energy & biomass -----------------------------------------------------
+  digestate:        {hu: digesztátum, en: digestate, unit: t}
+  renewable_power:  {hu: megújuló villamos energia, hő, biometán, en: renewable power and heat, unit: MWh}
+  energy_wood:      {hu: tűzifa, apríték, en: energy wood and chips, unit: t}
+  pellets:          {hu: pellet, brikett, en: pellets and briquettes, unit: t}
+  # --- external inputs -----------------------------------------------------------
+  natural_gas:      {hu: földgáz, en: natural gas, unit: MWh, origin: external}
+  electricity:      {hu: villamos energia, en: electricity, unit: MWh, origin: external}
+  diesel:           {hu: gázolaj, en: diesel, unit: l, origin: external}
+  fertilizer_n:     {hu: nitrogén műtrágya, en: nitrogen fertilizer, unit: t}
+  fertilizer_pk:    {hu: foszfor- és káliumműtrágya, en: P and K fertilizer, unit: t, origin: external}
+  crop_protection:  {hu: növényvédő szer, en: crop protection, unit: l, origin: external}
+  vet_medicine:     {hu: állatgyógyászat, en: veterinary products, unit: dose, origin: external}
+  varroa_treatment: {hu: atkaölő szer, en: varroa treatment, unit: dose, origin: external}
+  labour:           {hu: munkaerő, en: labour, unit: hour, origin: external}
+  irrigation_water: {hu: öntözővíz, en: irrigation water, unit: m3, origin: external}
+  contract_services: {hu: bérmunka, en: contract machinery services, unit: ha, origin: external}
+
+agribusinesses:
+  # ======================= PLANT PRODUCTION =======================
+  arable_farm:
+    hu: Szántóföldi növénytermesztő
+    en: Arable crop farm
+    sector: plant_production
+    cycle_months: 9
+    inputs: {certified_seed: 3, fertilizer_n: 3, fertilizer_pk: 2, crop_protection: 3, diesel: 3,
+             contract_services: 2, irrigation_water: 1, manure: 1, poultry_litter: 1, digestate: 1,
+             natural_gas: 1, pollination: 1}   # gas: grain drying; pollination: rapeseed, sunflower
+    outputs: {wheat: 3, maize_grain: 3, barley: 2, sunflower_seed: 3, rapeseed: 2, soybean: 1,
+              sugar_beet: 1, silage_maize: 2, alfalfa_hay: 1, straw: 1, maize_stover: 1, nectar_flow: 1}
+  seed_producer:
+    hu: Vetőmag-előállító
+    en: Seed producer
+    sector: plant_production
+    cycle_months: 12
+    inputs: {pollination: 3, fertilizer_n: 2, crop_protection: 3, irrigation_water: 2, labour: 2, diesel: 2}
+    outputs: {certified_seed: 3, nectar_flow: 1}
+  grassland_farm:
+    hu: Gyepgazdálkodó
+    en: Grassland and hay farm
+    sector: plant_production
+    cycle_months: 4
+    inputs: {diesel: 2, contract_services: 2, manure: 1}
+    outputs: {meadow_hay: 3, pasture: 2, nectar_flow: 1}
+  orchard:
+    hu: Gyümölcstermesztő
+    en: Orchard
+    sector: horticulture
+    cycle_months: 12
+    inputs: {pollination: 3, crop_protection: 3, labour: 3, irrigation_water: 2, fertilizer_n: 1, diesel: 1}
+    outputs: {fresh_fruit: 3, industrial_fruit: 2, prunings: 1, nectar_flow: 1}
+  vegetable_grower:
+    hu: Zöldségtermesztő (szabadföldi és hajtatott)
+    en: Vegetable grower (field and greenhouse)
+    sector: horticulture
+    cycle_months: 4
+    inputs: {labour: 3, irrigation_water: 3, natural_gas: 2, electricity: 1, certified_seed: 2,
+             fertilizer_n: 2, crop_protection: 2, pollination: 1, renewable_power: 1}
+    outputs: {vegetables: 3}
+  vineyard_winery:
+    hu: Szőlő- és bortermelő
+    en: Vineyard and winery
+    sector: horticulture
+    cycle_months: 12
+    inputs: {labour: 3, crop_protection: 3, diesel: 1, electricity: 1}
+    outputs: {grapes: 2, wine: 3, grape_pomace: 1, prunings: 1}
+  forestry:
+    hu: Erdőgazdálkodó (akác is)
+    en: Forestry (incl. black locust)
+    sector: forestry
+    cycle_months: 60
+    inputs: {diesel: 2, labour: 2}
+    outputs: {energy_wood: 3, nectar_flow: 2}   # acacia honey depends on black locust stands
+
+  # ======================= BEEKEEPING =======================
+  beekeeping:
+    hu: Méhészet
+    en: Beekeeping
+    sector: apiculture
+    cycle_months: 12
+    inputs: {nectar_flow: 3, sugar: 2, varroa_treatment: 3, bee_colonies: 1, diesel: 1, beeswax: 1}
+    outputs: {honey: 3, beeswax: 1, bee_colonies: 1, pollination: 2}
+
+  # ======================= LIVESTOCK =======================
+  dairy_farm:
+    hu: Tejelő tehenészet
+    en: Dairy farm
+    sector: livestock
+    cycle_months: 24
+    inputs: {silage_maize: 3, alfalfa_hay: 3, meadow_hay: 1, compound_feed: 2, soybean_meal: 2,
+             oilseed_meal: 2, beet_pulp: 1, ddgs: 1, straw: 2, vet_medicine: 2, labour: 2, electricity: 1}
+    outputs: {raw_milk: 3, calves: 2, live_cattle: 1, manure: 2}
+  beef_cattle:
+    hu: Húsmarha-tartó
+    en: Beef cattle farm
+    sector: livestock
+    cycle_months: 24
+    inputs: {calves: 2, pasture: 3, meadow_hay: 3, silage_maize: 1, compound_feed: 1, straw: 1, vet_medicine: 1}
+    outputs: {live_cattle: 3, manure: 1}
+  pig_farm:
+    hu: Sertéstartó
+    en: Pig farm
+    sector: livestock
+    cycle_months: 10
+    inputs: {compound_feed: 3, piglets: 2, vet_medicine: 2, electricity: 1, labour: 1}
+    outputs: {slaughter_pigs: 3, piglets: 1, manure: 2}
+  hatchery:
+    hu: Keltető
+    en: Hatchery
+    sector: livestock
+    cycle_months: 1
+    inputs: {hatching_eggs: 3, electricity: 2, vet_medicine: 1}
+    outputs: {day_old_chicks: 3}
+  broiler_farm:
+    hu: Brojlercsirke-nevelő
+    en: Broiler farm
+    sector: livestock
+    cycle_months: 2
+    inputs: {day_old_chicks: 3, compound_feed: 3, natural_gas: 2, straw: 1, vet_medicine: 1}
+    outputs: {broilers: 3, poultry_litter: 1}
+  layer_farm:
+    hu: Tojótyúk-tartó (étkezési és keltetőtojás)
+    en: Layer farm (table and hatching eggs)
+    sector: livestock
+    cycle_months: 5
+    inputs: {day_old_chicks: 3, compound_feed: 3, electricity: 1, vet_medicine: 1}
+    outputs: {eggs: 3, hatching_eggs: 2, poultry_litter: 1}
+  waterfowl_farm:
+    hu: Víziszárnyas-tartó
+    en: Duck and goose farm
+    sector: livestock
+    cycle_months: 3
+    inputs: {day_old_chicks: 3, compound_feed: 3, maize_grain: 2, vet_medicine: 1}
+    outputs: {waterfowl: 3, feathers_down: 2, poultry_litter: 1}
+  sheep_goat:
+    hu: Juh- és kecsketartó
+    en: Sheep and goat farm
+    sector: livestock
+    cycle_months: 8
+    inputs: {pasture: 3, meadow_hay: 3, compound_feed: 1, vet_medicine: 1}
+    outputs: {lambs: 3, small_rum_milk: 1, wool: 1, manure: 1}
+  fish_farm:
+    hu: Halastavi gazdálkodó
+    en: Fish pond farm
+    sector: aquaculture
+    cycle_months: 24
+    inputs: {irrigation_water: 3, wheat: 2, maize_grain: 2, compound_feed: 1, labour: 1}
+    outputs: {fish: 3}
+
+  # ======================= PROCESSING =======================
+  feed_mill:
+    hu: Takarmánykeverő üzem
+    en: Compound feed mill
+    sector: processing
+    cycle_months: 1
+    inputs: {maize_grain: 3, wheat: 2, barley: 2, soybean_meal: 3, oilseed_meal: 2, bran: 1, ddgs: 1,
+             molasses: 1, electricity: 1}
+    outputs: {compound_feed: 3}
+  oilseed_crusher:
+    hu: Olajütő, olajgyár
+    en: Oilseed crusher
+    sector: processing
+    cycle_months: 1
+    inputs: {sunflower_seed: 3, rapeseed: 2, soybean: 1, natural_gas: 1, electricity: 1}
+    outputs: {vegetable_oil: 3, oilseed_meal: 2, soybean_meal: 1, sunflower_husk: 1}
+  flour_mill:
+    hu: Malom
+    en: Flour mill
+    sector: processing
+    cycle_months: 1
+    inputs: {wheat: 3, electricity: 2}
+    outputs: {flour: 3, bran: 1}
+  sugar_factory:
+    hu: Cukorgyár
+    en: Sugar factory
+    sector: processing
+    cycle_months: 1
+    inputs: {sugar_beet: 3, natural_gas: 3}
+    outputs: {sugar: 3, beet_pulp: 1, molasses: 1}
+  bioethanol_plant:
+    hu: Bioetanol- és izoglükózgyár
+    en: Bioethanol and isoglucose plant
+    sector: processing
+    cycle_months: 1
+    inputs: {maize_grain: 3, natural_gas: 2, electricity: 1}
+    outputs: {bioethanol: 3, ddgs: 2}
+  slaughterhouse:
+    hu: Vágóhíd, húsfeldolgozó
+    en: Slaughterhouse and meat processor
+    sector: processing
+    cycle_months: 1
+    inputs: {slaughter_pigs: 3, live_cattle: 2, broilers: 3, waterfowl: 2, lambs: 1, labour: 2, electricity: 1}
+    outputs: {meat: 3, animal_byproducts: 1}
+  dairy_processor:
+    hu: Tejfeldolgozó
+    en: Dairy processor
+    sector: processing
+    cycle_months: 1
+    inputs: {raw_milk: 3, small_rum_milk: 1, natural_gas: 2, electricity: 1}
+    outputs: {dairy_products: 3, whey: 1}
+  distillery:
+    hu: Pálinkafőzde
+    en: Distillery
+    sector: processing
+    cycle_months: 3
+    inputs: {industrial_fruit: 3, grape_pomace: 2, natural_gas: 1}
+    outputs: {fruit_spirits: 3}
+
+  # ======================= ENERGY & INPUTS =======================
+  biogas_plant:
+    hu: Biogázüzem
+    en: Biogas plant
+    sector: energy
+    cycle_months: 1
+    inputs: {manure: 3, silage_maize: 2, beet_pulp: 1, whey: 1, animal_byproducts: 1, grape_pomace: 1}
+    outputs: {renewable_power: 3, digestate: 2}
+  biomass_energy:
+    hu: Biomassza-feldolgozó, fűtőmű
+    en: Biomass pellet and heating plant
+    sector: energy
+    cycle_months: 1
+    inputs: {straw: 2, maize_stover: 1, sunflower_husk: 2, energy_wood: 3, prunings: 1}
+    outputs: {pellets: 3, renewable_power: 2}
+  fertilizer_plant:
+    hu: Nitrogénműtrágya-gyár
+    en: Nitrogen fertilizer plant
+    sector: inputs
+    cycle_months: 1
+    inputs: {natural_gas: 3, electricity: 1}
+    outputs: {fertilizer_n: 3}
+
+# Shocks set the initial impulse. Signs follow the affected quantity:
+#   supply: -3..+3 change in product availability (negative = scarcer)
+#   capacity: -3..+3 change in a business's production capacity
+#   price: +/- direct price move for external inputs
+shocks:
+  drought:
+    hu: Aszály
+    en: Drought
+    season: [6, 7, 8]
+    supply: {maize_grain: -3, silage_maize: -3, meadow_hay: -3, pasture: -3, sunflower_seed: -2,
+             soybean: -2, alfalfa_hay: -2, nectar_flow: -2, vegetables: -1, irrigation_water: -2}
+    capacity: {fish_farm: -1}
+  late_frost:
+    hu: Késői fagy
+    en: Late spring frost
+    season: [3, 4, 5]
+    supply: {fresh_fruit: -3, industrial_fruit: -3, grapes: -1, nectar_flow: -3}
+  heatwave:
+    hu: Hőség
+    en: Heatwave
+    season: [6, 7, 8]
+    supply: {maize_grain: -1}
+    capacity: {dairy_farm: -1, broiler_farm: -1, layer_farm: -1}
+  foot_and_mouth:
+    hu: Száj- és körömfájás
+    en: Foot-and-mouth disease
+    capacity: {dairy_farm: -3, beef_cattle: -3, sheep_goat: -2, pig_farm: -1}
+    trade_ban: [live_cattle, raw_milk, meat, dairy_products, slaughter_pigs, lambs]
+  african_swine_fever:
+    hu: Afrikai sertéspestis
+    en: African swine fever
+    capacity: {pig_farm: -2}
+    trade_ban: [slaughter_pigs, meat]
+  avian_influenza:
+    hu: Madárinfluenza
+    en: Avian influenza
+    capacity: {broiler_farm: -2, layer_farm: -2, waterfowl_farm: -3, hatchery: -1}
+    trade_ban: [broilers, eggs, waterfowl, feathers_down]
+  bee_colony_loss:
+    hu: Méhcsalád-elhullás (atka, telelés)
+    en: Bee colony losses
+    season: [2, 3]
+    capacity: {beekeeping: -3}
+  energy_price_spike:
+    hu: Energiaár-sokk
+    en: Energy price spike
+    price: {natural_gas: 3, electricity: 2, diesel: 1}
+  labour_shortage:
+    hu: Munkaerőhiány
+    en: Seasonal labour shortage
+    price: {labour: 3}
+  grain_import_surge:
+    hu: Olcsó gabonaimport
+    en: Cheap grain import surge
+    supply: {wheat: 2, maize_grain: 2, sunflower_seed: 1, rapeseed: 1}
